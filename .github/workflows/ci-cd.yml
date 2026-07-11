@@ -7,8 +7,9 @@ on:
     branches: [main]
 
 env:
-  BACKEND_URL: http://10.0.0.9:5001
-  FRONTEND_PORT: "5273"
+  DEPLOY_HOST: root@10.0.0.6
+  REMOTE_DIR: /opt/spatial/web
+  BACKEND_URL: http://10.0.0.6:5001
 
 jobs:
   build:
@@ -24,7 +25,7 @@ jobs:
       - run: npm run build
 
   deploy:
-    name: Deploy (self-hosted)
+    name: Deploy → 10.0.0.6
     needs: build
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: self-hosted
@@ -44,14 +45,33 @@ jobs:
           npm ci
           npm run build
 
-      - name: Install production deps
-        run: npm ci --omit=dev
-
-      - name: PM2 reload
+      - name: Setup SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
-          export PATH="$PATH:$(npm config get prefix)/bin"
-          npx pm2 startOrReload ecosystem.config.cjs --update-env
-          npx pm2 save
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          echo "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keygen -R 10.0.0.6 2>/dev/null || true
+          ssh-keyscan -H 10.0.0.6 >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Sync to remote
+        run: |
+          ssh -i ~/.ssh/deploy_key ${DEPLOY_HOST} "mkdir -p ${REMOTE_DIR}"
+          rsync -azP --delete \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            --exclude='node_modules/' \
+            --exclude='.env' \
+            dist package.json package-lock.json ecosystem.config.cjs \
+            "${DEPLOY_HOST}:${REMOTE_DIR}/"
+
+      - name: Install deps + reload
+        run: |
+          ssh -i ~/.ssh/deploy_key "${DEPLOY_HOST}" 'set -e; \
+            cd '"${REMOTE_DIR}"'; \
+            npm ci --omit=dev; \
+            pm2 startOrReload ecosystem.config.cjs --update-env; \
+            pm2 save'
 
       - name: Status
-        run: npx pm2 list | grep spatial-web
+        run: ssh -i ~/.ssh/deploy_key "${DEPLOY_HOST}" "pm2 list | grep spatial-web"
