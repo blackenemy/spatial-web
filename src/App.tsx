@@ -114,7 +114,13 @@ export default function App() {
 
   const handleSelectPlace = (id: string | null) => {
     setSelectedPlaceId(id);
-    if (id) setSidebarView('detail');
+    if (id) {
+      setSidebarView('detail');
+      // Surface the panel — a marker click is useless if the detail lands in a
+      // collapsed (desktop) or hidden (mobile shows the map) sidebar.
+      setSidebarCollapsed(false);
+      setMobileShowSidebar(true);
+    }
   };
   const [urlLoadingInput, setUrlLoadingInput] = useState('');
   const [loadingFromUrl, setLoadingFromUrl] = useState(false);
@@ -338,7 +344,7 @@ export default function App() {
         {/* Floating "show panel" button — the collapse toggle lives inside the
             panel, which slides off-screen when collapsed, so surface a way back. */}
         {sidebarCollapsed && (
-          <div className="hidden md:block" style={{ position: 'absolute', left: 16, top: 16, zIndex: 1000 }}>
+          <div className="hidden md:block" style={{ position: 'absolute', left: 16, top: 76, zIndex: 1000 }}>
             <Button
               icon="chevron-right"
               onClick={() => setSidebarCollapsed(false)}
@@ -354,9 +360,9 @@ export default function App() {
           style={{
             position: 'absolute',
             left: sidebarCollapsed ? -300 : 16,
-            top: 16,
+            top: 76,
             width: 300,
-            maxHeight: 'calc(100vh - 64px - 32px)',
+            maxHeight: 'calc(100vh - 76px - 32px)',
             borderRadius: 8,
             background: '#fff',
             boxShadow: '0 2px 12px rgba(0,0,0,0.12)',

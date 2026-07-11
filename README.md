@@ -1,32 +1,61 @@
-# React + TypeScript + Vite
+# spatial-web
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+ส่วนหน้าบ้าน (Frontend) ของ Mini Spatial Data Platform — แผนที่ + ตารางแบบโต้ตอบได้
+ใช้ React 19 + Vite + MapLibre GL + React Query + Blueprint UI
 
-Currently, two official plugins are available:
+เว็บจริง: http://spatial.web.project-hub.it.com
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+> **ระบบนี้มี 2 repo** คู่กับหลังบ้าน:
+> [`spatial-api`](https://github.com/blackenemy/spatial-api)
+> หน้าบ้านตัวนี้ไม่มีข้อมูลของตัวเอง มันดึงจาก API — ให้เปิด API ก่อน แล้วค่อยเปิดตัวนี้
 
-## React Compiler
+## วิธีที่ 1 — รันด้วย Docker
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+เปิด **API ก่อน** (ที่ repo [`spatial-api`](https://github.com/blackenemy/spatial-api)
+สั่ง `docker compose up`) แล้วกลับมาที่นี่:
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+docker compose up --build                       # เปิดที่ http://localhost:5173 → ต่อ API ที่ :3000
+# ถ้าจะให้ต่อ API ที่อื่น (ค่านี้ถูกฝังตอน build):
+VITE_API_URL=http://host:port docker compose up --build
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## วิธีที่ 2 — รันเองไม่ใช้ Docker
+
+```bash
+npm install
+export VITE_API_URL=http://localhost:3000   # ที่อยู่ของ API
+npm run dev                                  # เปิดที่ http://localhost:5173
+```
+
+ตั้งค่า `VITE_API_URL` ในไฟล์ `.env.local` / `.env.production` แทนการ export ก็ได้
+
+## ตัวแปรสภาพแวดล้อม (Environment variables)
+
+| ตัวแปร | ตัวอย่าง | คำอธิบาย |
+|--------|----------|----------|
+| `VITE_API_URL` | `http://localhost:3000` | ที่อยู่ของ API (ค่าเริ่มต้น `http://localhost:3000`) · ค่านี้ถูกฝังตอน **build** (Vite) |
+
+## คำสั่ง (Scripts)
+
+```bash
+npm run dev       # เซิร์ฟเวอร์ dev (แก้แล้วรีโหลดเอง)
+npm run build     # ตรวจชนิดข้อมูล (tsc -b) + build ตัวจริง
+npm run preview   # ลองเปิดตัวที่ build แล้ว
+npm test          # ทดสอบย่อย (vitest)
+npx playwright test   # ทดสอบ E2E — API + ทุกขั้นตอนบนหน้าจอ (ดูโฟลเดอร์ e2e/)
+```
+
+## ทำอะไรได้บ้าง
+
+- ดึงข้อมูลสถานที่จาก API จริง (ไม่ใช่ข้อมูลปลอม) แล้วแสดงเป็น **แผนที่ MapLibre** + **ตาราง**
+- **เพิ่ม / แก้ไข / ลบ** สถานที่ผ่านหน้าจอ (คลิกบนแผนที่เพื่อปักตำแหน่ง)
+- **ค้นหา** ตามชื่อ, **กรอง** ตามประเภท, **รวมกลุ่มหมุด** (clustering) เมื่อหมุดเยอะ
+- แสดง geometry ได้หลายแบบ — **จุด (Point) / เส้น (LineString) / รูปปิด (Polygon)**
+- **นำเข้า / ส่งออก** ไฟล์ GeoJSON, สลับแผนที่พื้นหลัง, มีป้ายสีตามประเภทสถานที่
+
+## ทดสอบ E2E
+
+`e2e/api.spec.ts` ยิงไปที่ API จริง (เปลี่ยนได้ด้วยตัวแปร `API_URL`)
+ส่วน `e2e/web.spec.ts` ทดสอบหน้าจอโดยจำลอง API ในหน่วยความจำ
+รันครั้งแรกต้องสั่ง `npx playwright install chromium` ก่อนหนึ่งครั้ง

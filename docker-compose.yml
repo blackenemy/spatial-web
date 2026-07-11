@@ -1,0 +1,13 @@
+# Frontend only. Start the API first (see the spatial-api repo's docker compose),
+# then from here:
+#   docker compose up --build            → http://localhost:5173  (API at :3000)
+# Point at a different API (baked at build time by Vite):
+#   VITE_API_URL=http://host:port docker compose up --build
+services:
+  web:
+    build:
+      context: .
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
+    ports:
+      - "5173:5173"

@@ -165,4 +165,18 @@ test.describe('web app — full workflow', () => {
 
     await expect(vis(page.getByText('New PW Place'))).toBeVisible();
   });
+
+  test('clicking a marker shows its detail even when the panel is collapsed', async ({ page }) => {
+    await mockApi(page, [CAFE]);
+    await page.goto('/');
+
+    // Collapse the panel, then click the map marker.
+    await page.locator('[title="Hide panel"]').first().click();
+    await expect(vis(page.locator('[title="Show panel"]'))).toBeVisible();
+    await page.locator('.maplibregl-marker').first().click();
+
+    // Detail must surface (panel auto-expands) with the place name + actions.
+    await expect(vis(page.getByRole('heading', { name: 'After You Cafe' }))).toBeVisible();
+    await expect(vis(page.getByRole('button', { name: 'Edit' }))).toBeVisible();
+  });
 });
