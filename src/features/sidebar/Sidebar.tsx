@@ -212,7 +212,7 @@ export default function Sidebar({
 
       {/* Edit Mode */}
       {view === 'edit' && selectedFeature && (
-        <div style={{ flex: 1, overflow: 'y-auto', padding: 12 }}>
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: 12 }}>
           <EditPlaceForm
             feature={selectedFeature}
             onClose={() => onViewChange('detail')}
@@ -329,7 +329,7 @@ function PlaceDetailView({
       className="flex flex-col"
       style={{ flex: 1, overflow: 'hidden', padding: 12, gap: 12 }}
     >
-      <div style={{ overflow: 'y-auto' }}>
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
         <h5 className="bp6-heading" style={{ margin: 0, marginBottom: 8 }}>
           {feature.properties.name}
         </h5>
@@ -452,7 +452,7 @@ function AddPlaceSidebar({
         gap: 12,
       }}
     >
-      <div style={{ overflow: 'y-auto' }}>
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
         <Callout intent="warning" icon="info-sign" style={{ marginBottom: 12 }}>
           Click on the map to set the location
         </Callout>
