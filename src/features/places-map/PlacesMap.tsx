@@ -48,6 +48,9 @@ interface Props {
   addMode: boolean;
   pendingCoords: [number, number] | null;
   onPickLocation: (lng: number, lat: number) => void;
+  drawMode: boolean;
+  drawVertices: [number, number][];
+  onAddVertex: (lng: number, lat: number) => void;
   urlLoadingInput: string;
   onUrlLoadingInputChange: (url: string) => void;
   onLoadFromUrl: () => void;
@@ -66,6 +69,9 @@ export default function PlacesMap({
   addMode,
   pendingCoords,
   onPickLocation,
+  drawMode,
+  drawVertices,
+  onAddVertex,
   urlLoadingInput,
   onUrlLoadingInputChange,
   onLoadFromUrl,
@@ -153,6 +159,13 @@ export default function PlacesMap({
   }, [selectedPlaceId, nonPointFeatures]);
 
   const handleMapClick = (e: any) => {
+    // Draw mode: each click drops a polygon vertex.
+    if (drawMode) {
+      const { lng, lat } = e.lngLat;
+      onAddVertex(lng, lat);
+      return;
+    }
+
     // Check if a non-Point feature was clicked
     if (!addMode && e.features && e.features.length > 0) {
       const feature = e.features.find((f: any) => ['fill-layer', 'line-layer'].includes(f.layer.id));
@@ -232,6 +245,33 @@ export default function PlacesMap({
         interactiveLayerIds={['fill-layer', 'line-layer']}
       >
         <NavigationControl position="top-right" />
+
+        {/* Draw mode: polygon-in-progress + clicked vertices */}
+        {drawMode && (
+          <>
+            <Source
+              id="draw-source"
+              type="geojson"
+              data={{
+                type: 'FeatureCollection',
+                features:
+                  drawVertices.length >= 3
+                    ? [{ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[...drawVertices, drawVertices[0]]] } }]
+                    : drawVertices.length === 2
+                    ? [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: drawVertices } }]
+                    : [],
+              } as any}
+            >
+              <Layer id="draw-fill" type="fill" paint={{ 'fill-color': '#2D72D2', 'fill-opacity': 0.15 } as any} filter={['==', ['geometry-type'], 'Polygon'] as any} />
+              <Layer id="draw-line" type="line" paint={{ 'line-color': '#2D72D2', 'line-width': 2, 'line-dasharray': [2, 1] } as any} />
+            </Source>
+            {drawVertices.map((v, i) => (
+              <Marker key={`draw-${i}`} longitude={v[0]} latitude={v[1]} anchor="center">
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#2D72D2', border: '2px solid #fff', boxShadow: '0 0 2px rgba(0,0,0,0.4)' }} />
+              </Marker>
+            ))}
+          </>
+        )}
 
         {/* Non-Point features: GeoJSON source with fill and line layers */}
         <Source id="non-point-source" type="geojson" data={nonPointGeoJson}>

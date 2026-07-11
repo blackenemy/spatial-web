@@ -50,6 +50,10 @@ async function mockApi(page: Page, initial: Feat[]) {
       const f = store.find((x) => x.id === idMatch[1]);
       return f ? json(200, f) : json(404, { statusCode: 404, message: 'not found', error: 'Not Found' });
     }
+    if (method === 'POST' && url.pathname.endsWith('/within')) {
+      // Mock returns everything; real ST_Within filtering is covered in api.spec.ts.
+      return json(200, { type: 'FeatureCollection', features: store });
+    }
     if (method === 'POST') {
       const dto = req.postDataJSON();
       const f = feat(String(nextId++), dto.name, dto.type, dto.geometry.coordinates);
@@ -164,6 +168,42 @@ test.describe('web app — full workflow', () => {
     await vis(page.getByRole('button', { name: 'Save' })).click();
 
     await expect(vis(page.getByText('New PW Place'))).toBeVisible();
+  });
+
+  test('draws an area and finds places inside it', async ({ page }) => {
+    await mockApi(page, [CAFE, HOSP]);
+    await page.goto('/');
+
+    // Enter draw mode, drop 3 vertices on the map, then search the area.
+    await vis(page.getByRole('button', { name: 'Area' })).click();
+    const box = await page.locator('canvas.maplibregl-canvas').first().boundingBox();
+    if (!box) throw new Error('no map canvas');
+    await page.mouse.click(box.x + box.width * 0.4, box.y + box.height * 0.4);
+    await page.mouse.click(box.x + box.width * 0.6, box.y + box.height * 0.4);
+    await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.6);
+
+    await page.getByRole('button', { name: 'ค้นหาในพื้นที่นี้' }).click();
+
+    await expect(page.getByText(/ในพื้นที่: \d+ จุด/)).toBeVisible();
+    await expect(vis(page.getByText('After You Cafe'))).toBeVisible();
+  });
+
+  test('draws a polygon and saves it as a place', async ({ page }) => {
+    await mockApi(page, [CAFE]);
+    await page.goto('/');
+
+    await vis(page.getByRole('button', { name: 'Area' })).click();
+    const box = await page.locator('canvas.maplibregl-canvas').first().boundingBox();
+    if (!box) throw new Error('no map canvas');
+    await page.mouse.click(box.x + box.width * 0.4, box.y + box.height * 0.4);
+    await page.mouse.click(box.x + box.width * 0.6, box.y + box.height * 0.4);
+    await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.6);
+
+    await page.getByRole('button', { name: 'บันทึกเป็นสถานที่' }).click();
+    await page.getByPlaceholder('ชื่อสถานที่ (จำเป็น)').fill('พื้นที่ทดสอบ');
+    await page.getByRole('button', { name: 'บันทึก', exact: true }).click();
+
+    await expect(vis(page.getByText('พื้นที่ทดสอบ'))).toBeVisible();
   });
 
   test('clicking a marker shows its detail even when the panel is collapsed', async ({ page }) => {

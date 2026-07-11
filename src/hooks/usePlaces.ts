@@ -101,7 +101,22 @@ export function useDeletePlace(
 
   return useMutation({
     mutationFn: () => placesApi.deletePlace(id),
-    onSuccess: () => {
+    // Optimistic: drop the feature from every list cache immediately so the map
+    // (maplibre source) and table update without waiting for a refetch round-trip.
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['places'] });
+      const prev = queryClient.getQueriesData<FeatureCollection>({ queryKey: ['places'] });
+      queryClient.setQueriesData<FeatureCollection>({ queryKey: ['places'] }, (old) =>
+        old?.features
+          ? { ...old, features: old.features.filter((f) => f.id !== id) }
+          : old,
+      );
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      ctx?.prev?.forEach(([key, data]) => queryClient.setQueryData(key, data));
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['places'] });
       queryClient.removeQueries({ queryKey: ['places', id] });
     },

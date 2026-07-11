@@ -3,13 +3,14 @@
  */
 
 import { useRef, useState } from 'react';
-import { Navbar, Alignment, Icon, Button, ButtonGroup, Dialog, TextArea } from '@blueprintjs/core';
+import { Navbar, Alignment, Icon, Button, ButtonGroup, Dialog, TextArea, InputGroup, HTMLSelect } from '@blueprintjs/core';
 import { toast } from './toaster';
 import Sidebar, { type SidebarView } from './features/sidebar/Sidebar';
 import PlacesTable from './features/places-table/PlacesTable';
 import PlacesMap from './features/places-map/PlacesMap';
 import { PlaceLegend } from './components/PlaceTypeIcon';
 import { useCreatePlace, useListPlaces } from './hooks/usePlaces';
+import { placesApi } from './api/client';
 import { PLACE_TYPE_CONFIG } from './components/PlaceTypeIcon';
 import type { PlaceType, CreatePlaceDto } from './types/api';
 import type { Feature, Geometry } from 'geojson';
@@ -111,6 +112,35 @@ export default function App() {
   const [importingGeoJson, setImportingGeoJson] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [tableOpen, setTableOpen] = useState(false);
+  const [drawMode, setDrawMode] = useState(false);
+  const [drawVertices, setDrawVertices] = useState<[number, number][]>([]);
+  const [areaResults, setAreaResults] = useState<any[] | null>(null);
+  const [areaLoading, setAreaLoading] = useState(false);
+  const [savePolyOpen, setSavePolyOpen] = useState(false);
+  const [polyName, setPolyName] = useState('');
+  const [polyType, setPolyType] = useState<PlaceType>('attraction');
+
+  const clearArea = () => {
+    setDrawMode(false);
+    setDrawVertices([]);
+    setAreaResults(null);
+  };
+
+  const searchArea = async () => {
+    if (drawVertices.length < 3) return;
+    setAreaLoading(true);
+    try {
+      const polygon = { type: 'Polygon' as const, coordinates: [[...drawVertices, drawVertices[0]]] };
+      const fc = await placesApi.within(polygon);
+      setAreaResults(fc.features);
+      toast.success(`พบ ${fc.features.length} สถานที่ในพื้นที่นี้`);
+    } catch (e) {
+      toast.danger('ค้นหาพื้นที่ล้มเหลว: ' + (e as Error).message);
+    } finally {
+      setAreaLoading(false);
+      setDrawMode(false);
+    }
+  };
 
   const handleSelectPlace = (id: string | null) => {
     setSelectedPlaceId(id);
@@ -131,6 +161,23 @@ export default function App() {
 
   const { data } = useListPlaces();
   const createMutation = useCreatePlace();
+
+  const saveDrawnPolygon = async () => {
+    if (drawVertices.length < 3 || !polyName.trim()) return;
+    try {
+      await createMutation.mutateAsync({
+        name: polyName.trim(),
+        type: polyType,
+        geometry: { type: 'Polygon', coordinates: [[...drawVertices, drawVertices[0]]] },
+      });
+      toast.success('บันทึกพื้นที่เป็นสถานที่แล้ว');
+      setSavePolyOpen(false);
+      setPolyName('');
+      clearArea();
+    } catch (e) {
+      toast.danger('บันทึกล้มเหลว: ' + (e as Error).message);
+    }
+  };
 
   const handleExport = () => {
     if (!data) return;
@@ -235,6 +282,18 @@ export default function App() {
           >
             Table
           </Button>
+          <Button
+            icon="polygon-filter"
+            minimal
+            active={drawMode}
+            onClick={() => {
+              if (drawMode) clearArea();
+              else { setDrawVertices([]); setAreaResults(null); setDrawMode(true); }
+            }}
+            title="วาดพื้นที่บนแผนที่เพื่อค้นหาสถานที่ข้างใน"
+          >
+            Area
+          </Button>
           <input
             ref={fileRef}
             type="file"
@@ -304,6 +363,9 @@ export default function App() {
               addMode={sidebarView === 'add'}
             pendingCoords={pendingCoords}
             onPickLocation={(lng, lat) => setPendingCoords([lng, lat])}
+            drawMode={drawMode}
+            drawVertices={drawVertices}
+            onAddVertex={(lng, lat) => setDrawVertices((v) => [...v, [lng, lat]])}
             urlLoadingInput={urlLoadingInput}
             onUrlLoadingInputChange={setUrlLoadingInput}
             onLoadFromUrl={handleLoadFromUrl}
@@ -312,6 +374,62 @@ export default function App() {
           <div style={{ position: 'absolute', bottom: 16, right: 16, zIndex: 1000 }}>
             <PlaceLegend />
           </div>
+
+          {/* Draw-area controls */}
+          {drawMode && (
+            <div style={{ position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 1001, background: '#fff', borderRadius: 8, boxShadow: '0 2px 12px rgba(0,0,0,0.15)', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className="bp6-text-small bp6-text-muted">คลิกบนแผนที่เพื่อวาดพื้นที่ ({drawVertices.length} จุด)</span>
+              <Button intent="primary" small icon="search" loading={areaLoading} disabled={drawVertices.length < 3} onClick={searchArea}>
+                ค้นหาในพื้นที่นี้
+              </Button>
+              <Button small icon="floppy-disk" disabled={drawVertices.length < 3} onClick={() => setSavePolyOpen(true)}>
+                บันทึกเป็นสถานที่
+              </Button>
+              <Button small icon="cross" onClick={clearArea}>ล้าง</Button>
+            </div>
+          )}
+
+          {/* Area search results */}
+          {areaResults && !drawMode && (
+            <div style={{ position: 'absolute', top: 16, right: 16, width: 240, maxHeight: 'calc(100% - 32px)', zIndex: 1001, background: '#fff', borderRadius: 8, boxShadow: '0 2px 12px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid rgba(17,20,24,0.1)' }}>
+                <strong className="bp6-text-small">ในพื้นที่: {areaResults.length} จุด</strong>
+                <Button icon="cross" minimal small onClick={() => setAreaResults(null)} />
+              </div>
+              <div style={{ overflowY: 'auto', padding: 4 }}>
+                {areaResults.length === 0 ? (
+                  <div className="bp6-text-muted bp6-text-small" style={{ padding: 8 }}>ไม่พบสถานที่ในพื้นที่นี้</div>
+                ) : (
+                  areaResults.map((f) => (
+                    <div key={f.id} onClick={() => handleSelectPlace(f.id)} style={{ padding: '6px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 13 }} className="bp6-text-small">
+                      {f.properties.name}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Save drawn polygon as a place */}
+          <Dialog isOpen={savePolyOpen} onClose={() => setSavePolyOpen(false)} title="บันทึกพื้นที่เป็นสถานที่ (Polygon)">
+            <div className="bp6-dialog-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <InputGroup placeholder="ชื่อสถานที่ (จำเป็น)" value={polyName} onValueChange={setPolyName} autoFocus />
+              <HTMLSelect value={polyType} onChange={(e) => setPolyType(e.currentTarget.value as PlaceType)} fill>
+                {Object.entries(PLACE_TYPE_CONFIG).map(([key, config]) => (
+                  <option key={key} value={key}>{config.label}</option>
+                ))}
+              </HTMLSelect>
+              <span className="bp6-text-muted bp6-text-small">พื้นที่ที่วาด: {drawVertices.length} จุด</span>
+            </div>
+            <div className="bp6-dialog-footer">
+              <div className="bp6-dialog-footer-actions">
+                <Button onClick={() => setSavePolyOpen(false)}>ยกเลิก</Button>
+                <Button intent="primary" loading={createMutation.isPending} disabled={!polyName.trim()} onClick={saveDrawnPolygon}>
+                  บันทึก
+                </Button>
+              </div>
+            </div>
+          </Dialog>
 
           {/* Bottom drawer: PlacesTable */}
           {tableOpen && (

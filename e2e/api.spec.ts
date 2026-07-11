@@ -90,6 +90,34 @@ test.describe('backend API', () => {
     expect(gone.status()).toBe(404);
   });
 
+  test('POST /places/within finds places inside a polygon (PostGIS)', async ({ request }) => {
+    // Create a point in Bangkok, then confirm a polygon around Bangkok contains it
+    // and a polygon around Chiang Mai does not.
+    const create = await request.post(`${API}/places`, {
+      data: {
+        name: `PW Within ${Date.now()}`,
+        type: 'other',
+        geometry: { type: 'Point', coordinates: [100.5, 13.75] },
+      },
+    });
+    const id = (await create.json()).id as string;
+
+    const bangkok = await request.post(`${API}/places/within`, {
+      data: { polygon: { type: 'Polygon', coordinates: [[[100.3, 13.5], [100.75, 13.5], [100.75, 13.95], [100.3, 13.95], [100.3, 13.5]]] } },
+    });
+    expect(bangkok.status()).toBe(200);
+    const inside = await bangkok.json();
+    expect(inside.features.some((f: any) => f.id === id)).toBeTruthy();
+
+    const chiangmai = await request.post(`${API}/places/within`, {
+      data: { polygon: { type: 'Polygon', coordinates: [[[98.9, 18.7], [99.0, 18.7], [99.0, 18.8], [98.9, 18.8], [98.9, 18.7]]] } },
+    });
+    const outside = await chiangmai.json();
+    expect(outside.features.some((f: any) => f.id === id)).toBeFalsy();
+
+    await request.delete(`${API}/places/${id}`);
+  });
+
   test('GET /places/nearby returns a FeatureCollection', async ({ request }) => {
     const res = await request.get(
       `${API}/places/nearby?lng=100.5&lat=13.75&radius=100000`,

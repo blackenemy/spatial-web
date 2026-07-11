@@ -112,4 +112,15 @@ export const placesApi = {
   deletePlace: async (id: string): Promise<void> => {
     return request('DELETE', `/places/${id}`);
   },
+
+  /**
+   * POST /places/within
+   * Find places inside a drawn GeoJSON polygon (PostGIS ST_Within)
+   */
+  within: async (polygon: {
+    type: 'Polygon';
+    coordinates: number[][][];
+  }): Promise<FeatureCollection> => {
+    return request('POST', '/places/within', { polygon });
+  },
 };
