@@ -52,7 +52,7 @@ jobs:
           rsync -azP --delete \
             --exclude='node_modules/' \
             --exclude='.env' \
-            dist package.json package-lock.json \
+            dist package.json package-lock.json ecosystem.config.cjs \
             "${DEPLOY_HOST}:${REMOTE_DIR}/"
 
       - name: Install deps + reload
@@ -60,8 +60,7 @@ jobs:
           ssh "${DEPLOY_HOST}" 'set -e; \
             cd '"${REMOTE_DIR}"'; \
             npm ci --omit=dev; \
-            pm2 reload spatial-web --update-env 2>/dev/null \
-              || pm2 start "npx serve -s dist -l '"${FRONTEND_PORT}"'" --name spatial-web; \
+            pm2 startOrReload ecosystem.config.cjs --update-env; \
             pm2 save'
 
       - name: Status
