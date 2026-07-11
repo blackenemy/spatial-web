@@ -33,6 +33,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Free disk space
+        run: |
+          npm cache clean --force 2>/dev/null || true
+          rm -rf node_modules dist 2>/dev/null || true
+          df -h .
+
       - name: Build (VITE_API_URL baked at build time)
         env:
           VITE_API_URL: ${{ env.BACKEND_URL }}
