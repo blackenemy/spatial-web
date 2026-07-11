@@ -49,8 +49,9 @@ jobs:
 
       - name: PM2 reload
         run: |
-          pm2 startOrReload ecosystem.config.cjs --update-env
-          pm2 save
+          export PATH="$PATH:$(npm config get prefix)/bin"
+          npx pm2 startOrReload ecosystem.config.cjs --update-env
+          npx pm2 save
 
       - name: Status
-        run: pm2 list | grep spatial-web
+        run: npx pm2 list | grep spatial-web
