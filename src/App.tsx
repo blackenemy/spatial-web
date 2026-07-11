@@ -335,6 +335,19 @@ export default function App() {
           )}
         </div>
 
+        {/* Floating "show panel" button — the collapse toggle lives inside the
+            panel, which slides off-screen when collapsed, so surface a way back. */}
+        {sidebarCollapsed && (
+          <div className="hidden md:block" style={{ position: 'absolute', left: 16, top: 16, zIndex: 1000 }}>
+            <Button
+              icon="chevron-right"
+              onClick={() => setSidebarCollapsed(false)}
+              title="Show panel"
+              style={{ background: '#fff', boxShadow: '0 2px 12px rgba(0,0,0,0.12)' }}
+            />
+          </div>
+        )}
+
         {/* Floating sidebar panel (desktop only, overlay) */}
         <div
           className="hidden md:flex"
