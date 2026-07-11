@@ -1,0 +1,68 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  DEPLOY_HOST: root@10.0.0.6
+  REMOTE_DIR: /opt/spatial/web
+  BACKEND_URL: http://10.0.0.6:5001
+  FRONTEND_PORT: "5273"
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+  deploy:
+    name: Deploy → 10.0.0.6
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build (VITE_API_URL baked at build time)
+        env:
+          VITE_API_URL: ${{ env.BACKEND_URL }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Trust host key
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          ssh-keygen -R 10.0.0.6 2>/dev/null || true
+          ssh-keyscan -H 10.0.0.6 >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Sync to remote
+        run: |
+          ssh ${DEPLOY_HOST} "mkdir -p ${REMOTE_DIR}"
+          rsync -azP --delete \
+            --exclude='node_modules/' \
+            --exclude='.env' \
+            dist package.json package-lock.json \
+            "${DEPLOY_HOST}:${REMOTE_DIR}/"
+
+      - name: Install deps + reload
+        run: |
+          ssh "${DEPLOY_HOST}" 'set -e; \
+            cd '"${REMOTE_DIR}"'; \
+            npm ci --omit=dev; \
+            pm2 reload spatial-web --update-env 2>/dev/null \
+              || pm2 start "npx serve -s dist -l '"${FRONTEND_PORT}"'" --name spatial-web; \
+            pm2 save'
+
+      - name: Status
+        run: ssh "${DEPLOY_HOST}" "pm2 list | grep spatial-web"
