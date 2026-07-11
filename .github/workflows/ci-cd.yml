@@ -9,7 +9,7 @@ on:
 env:
   DEPLOY_HOST: root@10.0.0.6
   REMOTE_DIR: /opt/spatial/web
-  BACKEND_URL: http://spatial.api.project-hub.it.com
+  BACKEND_URL: https://spatial-api.project-hub.it.com
 
 jobs:
   build:

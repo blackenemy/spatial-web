@@ -3,7 +3,7 @@
 ส่วนหน้าบ้าน (Frontend) ของ Mini Spatial Data Platform — แผนที่ + ตารางแบบโต้ตอบได้
 ใช้ React 19 + Vite + MapLibre GL + React Query + Blueprint UI
 
-เว็บจริง: http://spatial.web.project-hub.it.com
+เว็บจริง: https://spatial-web.project-hub.it.com
 
 > **ระบบนี้มี 2 repo** คู่กับหลังบ้าน:
 > [`spatial-api`](https://github.com/blackenemy/spatial-api)

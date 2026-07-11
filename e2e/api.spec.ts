@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 // Backend E2E — full API workflow. Defaults to the deployed API; override with API_URL.
-const API = process.env.API_URL || 'http://spatial.api.project-hub.it.com';
+const API = process.env.API_URL || 'https://spatial-api.project-hub.it.com';
 
 test.describe('backend API', () => {
   test('GET /places returns a GeoJSON FeatureCollection', async ({ request }) => {
