@@ -7,9 +7,7 @@ on:
     branches: [main]
 
 env:
-  DEPLOY_HOST: root@10.0.0.6
-  REMOTE_DIR: /opt/spatial/web
-  BACKEND_URL: http://10.0.0.6:5001
+  BACKEND_URL: http://10.0.0.9:5001
   FRONTEND_PORT: "5273"
 
 jobs:
@@ -26,7 +24,7 @@ jobs:
       - run: npm run build
 
   deploy:
-    name: Deploy → 10.0.0.6
+    name: Deploy (self-hosted)
     needs: build
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: self-hosted
@@ -46,28 +44,13 @@ jobs:
           npm ci
           npm run build
 
-      - name: Trust host key
-        run: |
-          mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          ssh-keygen -R 10.0.0.6 2>/dev/null || true
-          ssh-keyscan -H 10.0.0.6 >> ~/.ssh/known_hosts 2>/dev/null
+      - name: Install production deps
+        run: npm ci --omit=dev
 
-      - name: Sync to remote
+      - name: PM2 reload
         run: |
-          ssh ${DEPLOY_HOST} "mkdir -p ${REMOTE_DIR}"
-          rsync -azP --delete \
-            --exclude='node_modules/' \
-            --exclude='.env' \
-            dist package.json package-lock.json ecosystem.config.cjs \
-            "${DEPLOY_HOST}:${REMOTE_DIR}/"
-
-      - name: Install deps + reload
-        run: |
-          ssh "${DEPLOY_HOST}" 'set -e; \
-            cd '"${REMOTE_DIR}"'; \
-            npm ci --omit=dev; \
-            pm2 startOrReload ecosystem.config.cjs --update-env; \
-            pm2 save'
+          pm2 startOrReload ecosystem.config.cjs --update-env
+          pm2 save
 
       - name: Status
-        run: ssh "${DEPLOY_HOST}" "pm2 list | grep spatial-web"
+        run: pm2 list | grep spatial-web
