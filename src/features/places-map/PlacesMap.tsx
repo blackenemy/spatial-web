@@ -164,7 +164,8 @@ export default function PlacesMap({
 
     // In add mode, pick location (Points only)
     if (!addMode) return;
-    const [lng, lat] = e.lngLat;
+    // maplibre passes a LngLat object ({ lng, lat }), not an array.
+    const { lng, lat } = e.lngLat;
     onPickLocation(lng, lat);
   };
 
