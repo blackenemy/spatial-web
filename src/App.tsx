@@ -221,7 +221,7 @@ export default function App() {
           </Button>
           <Navbar.Divider />
           <Button
-            icon="table"
+            icon="th-derived"
             minimal
             active={tableOpen}
             onClick={() => setTableOpen(!tableOpen)}
